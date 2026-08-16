@@ -68,7 +68,6 @@ app.get('/api/youtube/search', async (req, res) => {
     const url = new URL('https://www.googleapis.com/youtube/v3/search');
     url.searchParams.set('part', 'snippet');
     url.searchParams.set('type', 'video');
-    url.searchParams.set('videoCategoryId', '10');
     url.searchParams.set('maxResults', '12');
     url.searchParams.set('q', q);
     url.searchParams.set('key', YOUTUBE_API_KEY);
@@ -88,12 +87,28 @@ app.get('/api/youtube/search', async (req, res) => {
       });
     }
 
-    const results = (data.items || []).map((item) => ({
-      videoId: item.id.videoId,
-      title: item.snippet.title,
-      channelTitle: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
-    }));
+    const decode = (text) =>
+      String(text || '')
+        .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+
+    const results = (data.items || [])
+      .map((item) => ({
+        videoId: item?.id?.videoId,
+        title: decode(item?.snippet?.title),
+        channelTitle: decode(item?.snippet?.channelTitle),
+        thumbnail:
+          item?.snippet?.thumbnails?.medium?.url ||
+          item?.snippet?.thumbnails?.high?.url ||
+          item?.snippet?.thumbnails?.default?.url ||
+          (item?.id?.videoId ? `https://i.ytimg.com/vi/${item.id.videoId}/mqdefault.jpg` : null),
+      }))
+      .filter((item) => item.videoId);
     res.json({ results });
   } catch (err) {
     res.status(500).json({ error: err.message, results: [] });
