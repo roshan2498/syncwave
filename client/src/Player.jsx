@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import YouTube from 'react-youtube';
 
-/**
- * Synced YouTube player.
- * Admin drives playback; others follow playback_state from the server.
- */
 export default function Player({
   playback,
   isAdmin,
@@ -43,12 +39,11 @@ export default function Player({
             player.seekTo(target, true);
           }
           const state = player.getPlayerState?.();
-          // 1 playing, 2 paused
           if (playback.isPlaying && state !== 1) player.playVideo();
           if (!playback.isPlaying && state === 1) player.pauseVideo();
         }
       } catch {
-        // player may not be ready for every call
+        /* player may not be ready */
       } finally {
         setTimeout(() => {
           applyingRemote.current = false;
@@ -66,6 +61,8 @@ export default function Player({
       autoplay: 0,
       modestbranding: 1,
       rel: 0,
+      fs: 1,
+      playsinline: 1,
       origin: window.location.origin,
     },
   };
@@ -75,7 +72,7 @@ export default function Player({
     const player = playerRef.current;
     const currentTime = player?.getCurrentTime?.() ?? partial.currentTime ?? 0;
     onAdminStateChange({
-      videoId: videoId,
+      videoId,
       title: playback?.title,
       currentTime,
       ...partial,
@@ -84,15 +81,13 @@ export default function Player({
 
   if (!videoId) {
     return (
-      <div className="player-frame">
-        <div className="empty-player">
+      <div className="player-frame border border-ink/10 bg-ink dark:border-white/10">
+        <div className="absolute inset-0 grid place-items-center p-6 text-center">
           <div>
-            <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '1.4rem', color: 'var(--ink)' }}>
-              Nothing playing yet
-            </p>
-            <p style={{ margin: '0.5rem 0 0' }}>
+            <p className="font-display text-xl font-bold text-paper sm:text-2xl">Nothing playing yet</p>
+            <p className="mt-2 text-sm text-mist/60">
               {isAdmin
-                ? 'Search below or paste a YouTube link to start the session.'
+                ? 'Search below or paste a YouTube link to start.'
                 : 'Waiting for the host to pick a track.'}
             </p>
           </div>
@@ -102,12 +97,22 @@ export default function Player({
   }
 
   return (
-    <div className="player-frame">
+    <div className="player-frame border border-ink/10 bg-ink dark:border-white/10">
       <YouTube
+        className="yt-wrap"
+        iframeClassName="yt-iframe"
         videoId={videoId}
         opts={opts}
         onReady={(e) => {
           playerRef.current = e.target;
+          const iframe = e.target.getIframe?.();
+          if (iframe) {
+            iframe.setAttribute('allowfullscreen', '1');
+            iframe.setAttribute(
+              'allow',
+              'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen'
+            );
+          }
           setReady(true);
           if (mutedFollowers && !isAdmin) {
             try {
@@ -121,7 +126,6 @@ export default function Player({
         onPause={() => emitFromAdmin({ isPlaying: false })}
         onEnd={() => emitFromAdmin({ isPlaying: false })}
         onStateChange={(e) => {
-          // Seeking often surfaces as buffering/paused — sync time when admin seeks
           if (!isAdmin || applyingRemote.current) return;
           if (e.data === 1 || e.data === 2) {
             emitFromAdmin({ isPlaying: e.data === 1 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Player from './Player.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 import { extractVideoId } from './session.js';
 
 export default function Room({
@@ -93,106 +94,152 @@ export default function Room({
     setChatText('');
   };
 
+  const line = 'border-ink/10 dark:border-white/10';
+  const softBtn =
+    'border border-ink/15 px-3 py-1.5 text-sm font-medium text-mute transition hover:border-signal hover:text-signal dark:border-white/15 dark:text-mist';
+  const field =
+    'min-w-0 flex-1 border border-ink/10 bg-mist/40 px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-mute/50 focus:border-signal/60 dark:border-white/10 dark:bg-panel-2 dark:text-paper dark:placeholder:text-mist/40';
+
   return (
-    <div className="room">
-      <header className="room-top">
-        <div>
-          <h1 className="room-title">{channel.name}</h1>
-          <div className="room-meta">
-            {isAdmin && <span className="badge">Host</span>}{' '}
-            {members.length} listening · you are {displayName}
+    <div className="flex min-h-screen flex-col bg-paper text-ink dark:bg-panel dark:text-paper">
+      <header
+        className={`sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b ${line} bg-paper/90 px-4 py-3 backdrop-blur-md dark:bg-panel/90 sm:px-6`}
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-display text-sm font-bold tracking-tight text-signal-ink dark:text-signal">
+              SyncWave
+            </span>
+            <span className="text-mute/40 dark:text-white/25">/</span>
+            <h1 className="truncate font-display text-lg font-bold tracking-tight sm:text-xl">
+              {channel.name}
+            </h1>
           </div>
+          <p className="mt-0.5 text-sm text-mute dark:text-mist/70">
+            {isAdmin && (
+              <span className="mr-2 inline-block bg-signal px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-signal-ink">
+                Host
+              </span>
+            )}
+            {members.length} listening · {displayName}
+          </p>
         </div>
-        <div className="room-actions">
+        <div className="flex flex-wrap items-center gap-2">
+          <ThemeToggle className={softBtn + ' !px-0'} />
           <button
             type="button"
-            className="btn btn-ghost btn-small"
+            className={softBtn}
             onClick={() => {
               onCopyLink();
               showToast('Invite link copied');
             }}
           >
-            Copy invite link
+            Copy invite
           </button>
-          <button type="button" className="btn btn-ghost btn-small" onClick={onLeave}>
+          <button
+            type="button"
+            className={`${softBtn} hover:border-live hover:text-live`}
+            onClick={onLeave}
+          >
             Leave
           </button>
         </div>
       </header>
 
-      <div className="room-body">
-        <section className="panel player-wrap">
-          <Player
-            playback={playback}
-            isAdmin={isAdmin}
-            onAdminStateChange={onPlaybackUpdate}
-          />
-          <p className="now-playing">
-            Now playing:{' '}
-            <strong>{playback?.title || playback?.videoId || '—'}</strong>
-            {!isAdmin && ' · synced to host'}
-          </p>
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.9fr)]">
+        <section className={`flex flex-col gap-4 border-b ${line} p-4 sm:p-6 lg:border-b-0 lg:border-r`}>
+          <Player playback={playback} isAdmin={isAdmin} onAdminStateChange={onPlaybackUpdate} />
+
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-mute/60 dark:text-mist/50">
+                Now playing
+              </p>
+              <p className="truncate font-display text-lg font-semibold">
+                {playback?.title || playback?.videoId || '—'}
+              </p>
+              {!isAdmin && <p className="text-xs text-mute/60 dark:text-mist/50">Synced to host</p>}
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                disabled={!playback?.videoId}
+                className="bg-signal px-4 py-2 text-sm font-bold text-signal-ink transition hover:brightness-110 disabled:opacity-40"
+                onClick={() =>
+                  onPlaybackUpdate({
+                    ...playback,
+                    isPlaying: !playback?.isPlaying,
+                  })
+                }
+              >
+                {playback?.isPlaying ? 'Pause all' : 'Play all'}
+              </button>
+            )}
+          </div>
 
           {isAdmin ? (
-            <>
-              <form className="search-box" onSubmit={handleSearch}>
+            <div className="space-y-3">
+              <form className="flex gap-2" onSubmit={handleSearch}>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search music or paste a YouTube URL"
+                  className={field}
                 />
-                <button className="btn btn-primary" type="submit" disabled={searching} style={{ width: 'auto' }}>
+                <button
+                  type="submit"
+                  disabled={searching}
+                  className="bg-ink px-4 py-2.5 text-sm font-bold text-signal transition hover:opacity-90 disabled:opacity-50 dark:bg-paper dark:text-ink dark:hover:bg-signal"
+                >
                   {searching ? '…' : 'Go'}
                 </button>
               </form>
-              <p className="hint">
-                Tip: paste any YouTube link if search is unavailable. Only you (host) control playback.
+              <p className="text-xs text-mute/55 dark:text-mist/45">
+                Paste any YouTube link if search is unavailable. Only you control playback.
               </p>
-              {searchError && <p className="error">{searchError}</p>}
+              {searchError && <p className="text-sm text-live">{searchError}</p>}
               {results.length > 0 && (
-                <div className="results">
+                <div className="max-h-56 space-y-1 overflow-auto">
                   {results.map((item) => (
                     <button
                       key={item.videoId}
                       type="button"
-                      className="result-item"
                       onClick={() => playResult(item)}
+                      className="grid w-full grid-cols-[72px_1fr_auto] items-center gap-3 border border-transparent p-1.5 text-left transition hover:border-signal/40 hover:bg-mist/50 dark:hover:bg-panel-2"
                     >
-                      {item.thumbnail ? <img src={item.thumbnail} alt="" /> : <div />}
-                      <div className="meta">
-                        <p>{item.title}</p>
-                        <span>{item.channelTitle}</span>
+                      {item.thumbnail ? (
+                        <img src={item.thumbnail} alt="" className="h-10 w-[72px] object-cover" />
+                      ) : (
+                        <div className="h-10 w-[72px] bg-mist dark:bg-panel-2" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{item.title}</p>
+                        <p className="truncate text-xs text-mute/60 dark:text-mist/50">{item.channelTitle}</p>
                       </div>
-                      <span className="badge">Play</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-signal-ink dark:text-signal">
+                        Play
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
-              <div className="controls">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-small"
-                  disabled={!playback?.videoId}
-                  onClick={() =>
-                    onPlaybackUpdate({
-                      ...playback,
-                      isPlaying: !playback?.isPlaying,
-                    })
-                  }
-                >
-                  {playback?.isPlaying ? 'Pause for everyone' : 'Play for everyone'}
-                </button>
-              </div>
-            </>
+            </div>
           ) : (
-            <p className="hint">The host chooses and controls the music. Chat while you listen.</p>
+            <p className="text-sm text-mute/60 dark:text-mist/50">Host picks the music. Chat while you listen.</p>
           )}
         </section>
 
-        <aside className="panel side">
-          <div className="members">
+        <aside className="flex max-h-[min(100vh,720px)] min-h-[380px] flex-col lg:max-h-[calc(100vh-57px)]">
+          <div className={`flex flex-wrap gap-1.5 border-b ${line} px-4 py-3`}>
             {members.map((m) => (
-              <span key={m.userId} className={`member-chip ${m.isAdmin ? 'admin' : ''}`}>
+              <span
+                key={m.userId}
+                className={`px-2 py-0.5 text-xs ${
+                  m.isAdmin
+                    ? 'bg-signal/25 font-semibold text-signal-ink dark:bg-signal/15 dark:text-signal'
+                    : 'bg-ink/5 text-mute dark:bg-white/5 dark:text-mist/70'
+                }`}
+              >
                 {m.displayName}
                 {m.isAdmin ? ' · host' : ''}
                 {m.userId === userId ? ' (you)' : ''}
@@ -200,37 +247,64 @@ export default function Room({
             ))}
           </div>
 
-          <div className="chat">
+          <div className="flex flex-1 flex-col gap-3 overflow-auto px-4 py-4">
             {messages.map((m) =>
               m.userId === 'system' ? (
-                <div key={m.id} className="msg system">
+                <p key={m.id} className="self-center text-center text-xs italic text-mute/45 dark:text-mist/40">
                   {m.text}
-                </div>
+                </p>
               ) : (
-                <div key={m.id} className={`msg ${m.userId === userId ? 'mine' : ''}`}>
-                  <div className="who">{m.displayName}</div>
-                  <div className="bubble">{m.text}</div>
+                <div
+                  key={m.id}
+                  className={`max-w-[92%] ${m.userId === userId ? 'self-end text-right' : 'self-start'}`}
+                >
+                  <p
+                    className={`mb-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                      m.userId === userId
+                        ? 'text-signal-ink dark:text-signal'
+                        : 'text-mute/70 dark:text-mist/55'
+                    }`}
+                  >
+                    {m.displayName}
+                  </p>
+                  <div
+                    className={`inline-block px-3 py-2 text-sm leading-snug ${
+                      m.userId === userId
+                        ? 'bg-signal/30 text-ink dark:bg-signal/15 dark:text-paper'
+                        : 'bg-mist/70 text-ink dark:bg-panel-2 dark:text-paper/90'
+                    }`}
+                  >
+                    {m.text}
+                  </div>
                 </div>
               )
             )}
             <div ref={chatEndRef} />
           </div>
 
-          <form className="chat-form" onSubmit={sendChat}>
+          <form className={`flex gap-2 border-t ${line} p-3`} onSubmit={sendChat}>
             <input
               value={chatText}
               onChange={(e) => setChatText(e.target.value)}
               placeholder="Say something…"
               maxLength={500}
+              className={field}
             />
-            <button className="btn btn-primary" type="submit" style={{ width: 'auto' }}>
+            <button
+              type="submit"
+              className="bg-signal px-4 py-2.5 text-sm font-bold text-signal-ink transition hover:brightness-110"
+            >
               Send
             </button>
           </form>
         </aside>
       </div>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && (
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 animate-fade-up border border-ink/10 bg-paper px-4 py-2 text-sm text-ink shadow-lg dark:border-white/10 dark:bg-panel-2 dark:text-paper">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

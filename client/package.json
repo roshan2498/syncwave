@@ -15,7 +15,9 @@
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^5.0.0",
+    "tailwindcss": "^4.3.3",
     "vite": "^7.0.0"
   }
 }

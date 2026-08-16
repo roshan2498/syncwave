@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Home from './Home.jsx';
 import Room from './Room.jsx';
 import { getSocket } from './socket.js';
 import {
@@ -17,7 +18,7 @@ function getChannelIdFromPath() {
 }
 
 export default function App() {
-  const [view, setView] = useState('home'); // home | room | joining
+  const [view, setView] = useState('home');
   const [channelName, setChannelName] = useState('');
   const [displayName, setDisplayName] = useState(() => loadSession().displayName || '');
   const [joinCode, setJoinCode] = useState('');
@@ -205,82 +206,36 @@ export default function App() {
 
   if (view === 'room' && channel) {
     return (
-      <div className="app-shell">
-        <Room
-          channel={channel}
-          userId={userId}
-          displayName={displayName}
-          isAdmin={isAdmin}
-          members={members}
-          messages={messages}
-          playback={playback}
-          onSendChat={onSendChat}
-          onPlaybackUpdate={onPlaybackUpdate}
-          onLeave={onLeave}
-          onCopyLink={onCopyLink}
-        />
-      </div>
+      <Room
+        channel={channel}
+        userId={userId}
+        displayName={displayName}
+        isAdmin={isAdmin}
+        members={members}
+        messages={messages}
+        playback={playback}
+        onSendChat={onSendChat}
+        onPlaybackUpdate={onPlaybackUpdate}
+        onLeave={onLeave}
+        onCopyLink={onCopyLink}
+      />
     );
   }
 
   return (
-    <div className="app-shell">
-      <div className="home">
-        <div className="home-card">
-          <h1 className="brand">SyncWave</h1>
-          <p className="tagline">
-            Create a channel, share the link, chat and listen to YouTube together — no signup.
-          </p>
-
-          {!connected && <p className="hint">Connecting…</p>}
-          {view === 'joining' && <p className="hint">Rejoining your channel…</p>}
-
-          <form onSubmit={createChannel}>
-            <div className="field">
-              <label htmlFor="displayName">Your name</label>
-              <input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Alex"
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="channelName">Channel name</label>
-              <input
-                id="channelName"
-                value={channelName}
-                onChange={(e) => setChannelName(e.target.value)}
-                placeholder="Friday night beats"
-              />
-            </div>
-            <button className="btn btn-primary" type="submit" disabled={busy || !connected}>
-              Create channel
-            </button>
-          </form>
-
-          <div className="divider">or join</div>
-
-          <form onSubmit={joinChannel}>
-            <div className="field">
-              <label htmlFor="joinCode">Invite link or code</label>
-              <input
-                id="joinCode"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="https://…/c/abc123 or abc123"
-                required
-              />
-            </div>
-            <button className="btn btn-ghost" type="submit" disabled={busy || !connected} style={{ width: '100%' }}>
-              Join channel
-            </button>
-          </form>
-
-          {error && <p className="error">{error}</p>}
-        </div>
-      </div>
-    </div>
+    <Home
+      connected={connected}
+      joining={view === 'joining'}
+      displayName={displayName}
+      setDisplayName={setDisplayName}
+      channelName={channelName}
+      setChannelName={setChannelName}
+      joinCode={joinCode}
+      setJoinCode={setJoinCode}
+      busy={busy}
+      error={error}
+      onCreate={createChannel}
+      onJoin={joinChannel}
+    />
   );
 }
