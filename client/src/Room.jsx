@@ -30,22 +30,24 @@ export default function Room({
   const [results, setResults] = useState([]);
   const [searchError, setSearchError] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState('');
-  const [mobileTab, setMobileTab] = useState('stage'); // stage | chat
+  const [mobileTab, setMobileTab] = useState('stage');
   const chatEndRef = useRef(null);
   const searchWrapRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
-    if (!results.length) return undefined;
+    if (!searchOpen) return undefined;
     const onPointer = (e) => {
-      if (!searchWrapRef.current?.contains(e.target)) setResults([]);
+      if (!searchWrapRef.current?.contains(e.target)) closeSearch();
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') setResults([]);
+      if (e.key === 'Escape') closeSearch();
     };
     document.addEventListener('pointerdown', onPointer);
     document.addEventListener('keydown', onKey);
@@ -53,7 +55,19 @@ export default function Room({
       document.removeEventListener('pointerdown', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [results.length]);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchOpen) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  }, [searchOpen]);
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setResults([]);
+    setSearchError('');
+  };
 
   const showToast = (text) => {
     setToast(text);
@@ -74,7 +88,7 @@ export default function Room({
         currentTime: 0,
       });
       setQuery('');
-      setResults([]);
+      closeSearch();
       return;
     }
 
@@ -113,8 +127,8 @@ export default function Room({
       isPlaying: true,
       currentTime: 0,
     });
-    setResults([]);
     setQuery('');
+    closeSearch();
   };
 
   const sendChat = (e) => {
@@ -128,126 +142,40 @@ export default function Room({
 
   const stage = (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      {/* Cinema stage */}
       <div className="relative bg-ink">
         <div className="mx-auto w-full max-w-5xl">
           <Player playback={playback} isAdmin={isAdmin} onAdminStateChange={onPlaybackUpdate} />
         </div>
       </div>
 
-      {/* Transport dock — fused under player */}
-      <div className="relative z-20 border-b border-ink/10 bg-paper px-4 py-3 dark:border-white/10 dark:bg-panel-2 sm:px-5">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div
-              className={`h-2 w-2 shrink-0 rounded-full ${
-                playing ? 'animate-pulse bg-live' : 'bg-mute/40'
-              }`}
-              aria-hidden
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-base font-bold leading-tight sm:text-lg">
-                {playback?.title || playback?.videoId || 'Pick something to play'}
-              </p>
-              <p className="text-xs text-mute dark:text-mist/50">
-                {isAdmin ? 'You’re hosting · controls sync for everyone' : 'Synced to host'}
-              </p>
-            </div>
-            {isAdmin && (
-              <button
-                type="button"
-                disabled={!playback?.videoId}
-                className="shrink-0 bg-signal px-4 py-2 font-display text-sm font-bold text-signal-ink transition hover:brightness-110 disabled:opacity-40"
-                onClick={() =>
-                  onPlaybackUpdate({
-                    ...playback,
-                    isPlaying: !playback?.isPlaying,
-                  })
-                }
-              >
-                {playback?.isPlaying ? 'Pause' : 'Play'}
-              </button>
-            )}
+      <div className="border-b border-ink/10 bg-paper px-4 py-3 dark:border-white/10 dark:bg-panel-2 sm:px-5">
+        <div className="mx-auto flex max-w-5xl items-center gap-3">
+          <div
+            className={`h-2 w-2 shrink-0 rounded-full ${playing ? 'animate-pulse bg-live' : 'bg-mute/40'}`}
+            aria-hidden
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-base font-bold leading-tight sm:text-lg">
+              {playback?.title || playback?.videoId || 'Pick something to play'}
+            </p>
+            <p className="text-xs text-mute dark:text-mist/50">
+              {isAdmin ? 'You’re hosting · controls sync for everyone' : 'Synced to host'}
+            </p>
           </div>
-
           {isAdmin && (
-            <div ref={searchWrapRef} className="relative">
-              <form className="flex gap-2" onSubmit={handleSearch}>
-                <input
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    if (results.length) setResults([]);
-                    if (searchError) setSearchError('');
-                  }}
-                  placeholder="Search or paste a YouTube URL"
-                  className="min-w-0 flex-1 border-0 border-b-2 border-ink/15 bg-transparent py-2 text-sm outline-none transition placeholder:text-mute/50 focus:border-signal dark:border-paper/20 dark:focus:border-signal"
-                  autoComplete="off"
-                />
-                <button
-                  type="submit"
-                  disabled={searching}
-                  className="shrink-0 px-3 py-2 font-display text-sm font-bold text-signal-ink underline decoration-signal decoration-2 underline-offset-4 disabled:opacity-50 dark:text-signal"
-                >
-                  {searching ? 'Searching…' : 'Search'}
-                </button>
-              </form>
-
-              {searchError && <p className="mt-2 text-sm text-live">{searchError}</p>}
-
-              {results.length > 0 && (
-                <div
-                  className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-72 overflow-auto border border-ink/10 bg-paper shadow-xl dark:border-white/15 dark:bg-panel sm:max-h-80"
-                  role="listbox"
-                  aria-label="Search results"
-                >
-                  <div className="sticky top-0 flex items-center justify-between border-b border-ink/10 bg-paper px-3 py-2 dark:border-white/10 dark:bg-panel">
-                    <p className="text-xs font-semibold text-mute dark:text-mist/60">
-                      {results.length} results
-                    </p>
-                    <button
-                      type="button"
-                      className="text-xs font-medium text-mute hover:text-ink dark:hover:text-paper"
-                      onClick={() => setResults([])}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <ul className="divide-y divide-ink/5 dark:divide-white/5">
-                    {results.map((item) => (
-                      <li key={item.videoId}>
-                        <button
-                          type="button"
-                          role="option"
-                          onClick={() => playResult(item)}
-                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-mist/70 dark:hover:bg-panel-2"
-                        >
-                          {item.thumbnail ? (
-                            <img
-                              src={item.thumbnail}
-                              alt=""
-                              className="h-12 w-[84px] shrink-0 bg-mist object-cover dark:bg-panel-2"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="h-12 w-[84px] shrink-0 bg-mist dark:bg-panel-2" />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
-                            <p className="mt-0.5 truncate text-xs text-mute dark:text-mist/50">
-                              {item.channelTitle}
-                            </p>
-                          </div>
-                          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-signal-ink dark:text-signal">
-                            Play
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              disabled={!playback?.videoId}
+              className="shrink-0 bg-signal px-4 py-2 font-display text-sm font-bold text-signal-ink transition hover:brightness-110 disabled:opacity-40"
+              onClick={() =>
+                onPlaybackUpdate({
+                  ...playback,
+                  isPlaying: !playback?.isPlaying,
+                })
+              }
+            >
+              {playback?.isPlaying ? 'Pause' : 'Play'}
+            </button>
           )}
         </div>
       </div>
@@ -350,7 +278,7 @@ export default function Room({
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink dark:bg-panel dark:text-paper">
-      <header className="z-20 flex shrink-0 items-center gap-3 border-b border-ink/10 bg-paper/95 px-3 py-2.5 backdrop-blur dark:border-white/10 dark:bg-panel/95 sm:px-4">
+      <header className="relative z-30 flex shrink-0 items-center gap-2 border-b border-ink/10 bg-paper/95 px-3 py-2.5 backdrop-blur dark:border-white/10 dark:bg-panel/95 sm:gap-3 sm:px-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="font-display text-xs font-extrabold tracking-tight text-signal-ink dark:text-signal">
@@ -369,9 +297,7 @@ export default function Room({
                 key={m.userId}
                 className="inline-flex items-center gap-1 text-[11px] text-mute dark:text-mist/60"
               >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${m.isAdmin ? 'bg-signal' : 'bg-mute/40'}`}
-                />
+                <span className={`h-1.5 w-1.5 rounded-full ${m.isAdmin ? 'bg-signal' : 'bg-mute/40'}`} />
                 {m.displayName}
                 {m.userId === userId ? ' (you)' : ''}
               </span>
@@ -380,20 +306,107 @@ export default function Room({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {isAdmin && (
+            <div ref={searchWrapRef} className="relative">
+              <button
+                type="button"
+                aria-expanded={searchOpen}
+                aria-haspopup="dialog"
+                className={`inline-flex h-8 items-center gap-1.5 border px-2.5 text-xs font-medium transition ${
+                  searchOpen
+                    ? 'border-signal bg-signal text-signal-ink'
+                    : 'border-ink/15 hover:border-signal hover:text-signal dark:border-white/15'
+                }`}
+                onClick={() => setSearchOpen((open) => !open)}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3-3" />
+                </svg>
+                Search
+              </button>
+
+              {searchOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Search YouTube"
+                  className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,380px)] border border-ink/10 bg-paper shadow-2xl dark:border-white/15 dark:bg-panel"
+                >
+                  <form className="flex gap-2 border-b border-ink/10 p-3 dark:border-white/10" onSubmit={handleSearch}>
+                    <input
+                      ref={searchInputRef}
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        if (results.length) setResults([]);
+                        if (searchError) setSearchError('');
+                      }}
+                      placeholder="Search or paste a YouTube URL"
+                      className="min-w-0 flex-1 border-0 border-b-2 border-ink/15 bg-transparent py-1.5 text-sm outline-none transition placeholder:text-mute/50 focus:border-signal dark:border-paper/20"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      disabled={searching}
+                      className="shrink-0 bg-signal px-3 py-1.5 font-display text-xs font-bold text-signal-ink disabled:opacity-50"
+                    >
+                      {searching ? '…' : 'Go'}
+                    </button>
+                  </form>
+
+                  {searchError && (
+                    <p className="border-b border-ink/10 px-3 py-2 text-sm text-live dark:border-white/10">
+                      {searchError}
+                    </p>
+                  )}
+
+                  {results.length > 0 ? (
+                    <ul className="max-h-72 overflow-auto divide-y divide-ink/5 dark:divide-white/5" role="listbox">
+                      {results.map((item) => (
+                        <li key={item.videoId}>
+                          <button
+                            type="button"
+                            role="option"
+                            onClick={() => playResult(item)}
+                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-mist/70 dark:hover:bg-panel-2"
+                          >
+                            {item.thumbnail ? (
+                              <img
+                                src={item.thumbnail}
+                                alt=""
+                                className="h-12 w-[84px] shrink-0 bg-mist object-cover dark:bg-panel-2"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="h-12 w-[84px] shrink-0 bg-mist dark:bg-panel-2" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
+                              <p className="mt-0.5 truncate text-xs text-mute dark:text-mist/50">
+                                {item.channelTitle}
+                              </p>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    !searching &&
+                    !searchError && (
+                      <p className="px-3 py-4 text-center text-sm text-mute dark:text-mist/45">
+                        Search YouTube or paste a link to play for everyone.
+                      </p>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <ThemeToggle className="h-8 w-8 border border-ink/15 text-ink hover:border-signal dark:border-white/15 dark:text-paper" />
           <button
             type="button"
-            className="hidden border border-ink/15 px-2.5 py-1.5 text-xs font-medium sm:inline hover:border-signal hover:text-signal dark:border-white/15"
-            onClick={() => {
-              onCopyLink();
-              showToast('Invite link copied');
-            }}
-          >
-            Invite
-          </button>
-          <button
-            type="button"
-            className="border border-ink/15 px-2.5 py-1.5 text-xs font-medium hover:border-live hover:text-live dark:border-white/15 sm:hidden"
+            className="border border-ink/15 px-2.5 py-1.5 text-xs font-medium hover:border-signal hover:text-signal dark:border-white/15"
             onClick={() => {
               onCopyLink();
               showToast('Invite link copied');
@@ -411,18 +424,19 @@ export default function Room({
         </div>
       </header>
 
-      {/* Desktop: stage + chat rail */}
       <div className="hidden min-h-0 flex-1 lg:grid lg:grid-cols-[minmax(0,1fr)_340px]">
         {stage}
         <aside className="min-h-0 border-l border-ink/10 dark:border-white/10">{chat}</aside>
       </div>
 
-      {/* Mobile: tabbed stage / chat */}
       <div className="flex min-h-0 flex-1 flex-col lg:hidden">
         <div className="flex border-b border-ink/10 dark:border-white/10">
           {[
             ['stage', 'Stage'],
-            ['chat', `Chat${messages.length ? ` · ${messages.filter((m) => m.userId !== 'system').length}` : ''}`],
+            [
+              'chat',
+              `Chat${messages.length ? ` · ${messages.filter((m) => m.userId !== 'system').length}` : ''}`,
+            ],
           ].map(([id, label]) => (
             <button
               key={id}
