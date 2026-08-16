@@ -73,7 +73,13 @@ app.get('/api/youtube/search', async (req, res) => {
     url.searchParams.set('q', q);
     url.searchParams.set('key', YOUTUBE_API_KEY);
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        // Keys restricted to HTTP referrers need a referer; server-side calls are empty otherwise.
+        Referer: process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}/`,
+        Origin: process.env.RENDER_EXTERNAL_URL || `${req.protocol}://${req.get('host')}`,
+      },
+    });
     const data = await response.json();
     if (!response.ok) {
       return res.status(502).json({
