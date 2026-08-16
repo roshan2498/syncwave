@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -14,10 +14,12 @@ import {
   getMessages,
 } from './db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
 const tokenId = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 24);
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || '';
 
